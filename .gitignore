@@ -1,0 +1,66 @@
+# CathayBot .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 配置文件 (保留示例)
+configs/config.yaml
+!configs/config.example.yaml
+
+# 数据目录
+data/*
+!data/.gitkeep
+
+# 日志
+logs/*
+!logs/.gitkeep
+*.log
+
+# 环境变量
+.env
+.env.prod
+!.env.dev
+
+# 缓存
+.cache/
+.mypy_cache/
+.pytest_cache/
+
+# 前端构建产物
+node_modules/
+plugins/webui/static/dist/
+plugins/web_qq/static/dist/
+
+tmpclaude*

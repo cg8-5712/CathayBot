@@ -1,0 +1,11 @@
+# Admin 插件配置
+enabled: true
+
+# 是否允许远程重载插件
+allow_reload: true
+
+# 是否允许广播消息
+allow_broadcast: true
+
+# 广播消息间隔 (秒)，防止风控
+broadcast_interval: 1.0

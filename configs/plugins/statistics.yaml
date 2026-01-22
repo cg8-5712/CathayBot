@@ -1,0 +1,17 @@
+# Statistics 插件配置
+enabled: true
+
+# 是否统计消息
+track_messages: true
+
+# 是否统计命令调用
+track_commands: true
+
+# 是否忽略机器人消息
+ignore_bots: true
+
+# 数据保留天数 (0=永久保留)
+retention_days: 90
+
+# 排行榜显示数量
+top_limit: 10

@@ -1,0 +1,51 @@
+# CathayBot 全局配置文件
+# 复制此文件为 config.yaml 并修改配置
+
+bot:
+  # 超级管理员 QQ 号列表
+  superusers:
+    - "123456789"
+  # 机器人昵称
+  nickname:
+    - "CathayBot"
+    - "小猫"
+  # 命令前缀
+  command_start:
+    - "/"
+    - "!"
+  # 命令分隔符
+  command_sep:
+    - "."
+
+database:
+  # 数据库类型: sqlite / postgresql
+  type: sqlite
+  # SQLite 文件路径 (type=sqlite 时使用)
+  path: ./data/db.sqlite
+  # PostgreSQL 连接 URL (type=postgresql 时使用)
+  # url: postgresql+asyncpg://user:password@localhost:5432/cathaybot
+  # 连接池配置 (PostgreSQL)
+  pool_size: 5
+  max_overflow: 10
+
+webui:
+  # 是否启用 WebUI
+  enabled: true
+  # 监听地址
+  host: 0.0.0.0
+  # 监听端口
+  port: 8081
+  # JWT 密钥 (生产环境请修改!)
+  secret_key: change-me-in-production
+  # Token 过期时间 (小时)
+  token_expire_hours: 24
+
+logging:
+  # 日志级别: DEBUG / INFO / WARNING / ERROR
+  level: INFO
+  # 日志文件路径
+  file: ./logs/cathaybot.log
+  # 单个日志文件最大大小 (字节), 默认 10MB
+  max_size: 10485760
+  # 日志文件备份数量
+  backup_count: 5

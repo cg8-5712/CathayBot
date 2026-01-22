@@ -1,0 +1,8 @@
+# Help 插件配置
+enabled: true
+
+# 每页显示的插件数量
+page_size: 10
+
+# 是否显示隐藏插件
+show_hidden: false
