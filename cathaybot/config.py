@@ -50,6 +50,18 @@ class WebUIConfig(BaseModel):
     token_expire_hours: int = Field(default=24, description="Token 过期时间(小时)")
 
 
+class RedisConfig(BaseModel):
+    """Redis 配置"""
+
+    enabled: bool = Field(default=True, description="是否启用 Redis")
+    url: str = Field(default="redis://localhost:6379/0", description="Redis 连接 URL")
+    prefix: str = Field(default="cathaybot:", description="键前缀")
+
+    # 缓存配置
+    sync_interval: int = Field(default=300, description="同步到数据库的间隔(秒)")
+    expire_hours: int = Field(default=24, description="统计数据过期时间(小时)")
+
+
 class LoggingConfig(BaseModel):
     """日志配置"""
 
@@ -64,6 +76,7 @@ class GlobalConfig(BaseModel):
 
     bot: BotConfig = Field(default_factory=BotConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    redis: RedisConfig = Field(default_factory=RedisConfig)
     webui: WebUIConfig = Field(default_factory=WebUIConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
