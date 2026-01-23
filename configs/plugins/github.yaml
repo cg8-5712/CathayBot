@@ -1,0 +1,15 @@
+# GitHub 插件配置
+enabled: true
+
+# GitHub API Token (可选，提高 API 速率限制)
+# 获取方式: GitHub Settings -> Developer settings -> Personal access tokens
+token: ""
+
+# 是否自动识别群聊中的 GitHub 链接
+auto_detect: true
+
+# 默认输出模式: image / text
+default_output: image
+
+# 卡片缓存时间 (秒)
+cache_ttl: 3600
