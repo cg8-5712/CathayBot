@@ -1,36 +1,92 @@
-version: '3.8'
+version: "3.9"
+
+volumes:
+  cathaybot-configs:
+    name: cathaybot-configs
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/docker_file/cathaybot/configs
+
+  cathaybot-data:
+    name: cathaybot-data
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/docker_file/cathaybot/data
+
+  cathaybot-logs:
+    name: cathaybot-logs
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/docker_file/cathaybot/logs
+
+  cathaybot-plugins:
+    name: cathaybot-plugins
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/docker_file/cathaybot/plugins
+
+  tmp-storage:
+    name: tmp-storage
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /var/docker_file/cathaybot/tmp
 
 services:
+  # NapCat QQ 协议端
+  napcat:
+    container_name: cathaybot-napcat
+    image: mlikiowa/napcat-docker:latest
+    environment:
+      - NAPCAT_GID=1000
+      - NAPCAT_UID=1000
+    networks:
+      - cathaybot-network
+      - nginx-proxy-network
+    mac_address: 96:5a:78:66:45:bf
+    hostname: cathaybot-qq
+    restart: always
+    volumes:
+      - cathaybot-configs:/app/napcat/config:rw
+      - cathaybot-data:/app/.config/QQ:rw
+      - tmp-storage:/tmp:rw
+
   # CathayBot 主服务
   cathaybot:
+    container_name: cathaybot-app
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cathaybot
-    restart: unless-stopped
-    ports:
-      - "8080:8080"  # NoneBot2 端口
-      - "8081:8081"  # WebUI 端口
+    working_dir: /app
+    image: python3.12-cathaybot:latest
+    networks:
+      - cathaybot-network
+      - nginx-proxy-network
+      - database_interval
+    restart: always
     volumes:
-      # 挂载配置文件 (可修改配置而不重建镜像)
-      - ./configs:/app/configs
-      # 挂载数据目录 (持久化数据)
-      - ./data:/app/data
-      # 挂载日志目录
-      - ./logs:/app/logs
-      # 挂载环境变量文件
+      - ./configs:/app/configs:rw
+      - cathaybot-data:/app/data:rw
+      - cathaybot-logs:/app/logs:rw
+      - cathaybot-plugins:/app/plugins/data:rw
+      - tmp-storage:/tmp:rw
       - ./.env:/app/.env:ro
     environment:
-      # 环境变量 (可覆盖 .env 文件)
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO
     depends_on:
       - redis
-      # 如果使用 PostgreSQL，取消下面的注释
-      # - postgres
-    networks:
-      - cathaybot-network
-    # 健康检查
+      - napcat
+    command: ['python', 'bot.py']
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
@@ -40,16 +96,14 @@ services:
 
   # Redis 缓存服务
   redis:
-    image: redis:7-alpine
     container_name: cathaybot-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes --requirepass your_redis_password
+    image: redis:7-alpine
+    restart: always
     networks:
       - cathaybot-network
+    volumes:
+      - cathaybot-data:/data:rw
+    command: redis-server --appendonly yes --requirepass your_redis_password
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -59,19 +113,18 @@ services:
   # PostgreSQL 数据库 (可选，如果不使用 SQLite)
   # 取消注释以启用
   # postgres:
-  #   image: postgres:16-alpine
   #   container_name: cathaybot-postgres
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5432:5432"
+  #   image: postgres:16-alpine
+  #   restart: always
+  #   networks:
+  #     - cathaybot-network
+  #     - database_interval
   #   environment:
   #     POSTGRES_DB: cathaybot
   #     POSTGRES_USER: cathaybot
   #     POSTGRES_PASSWORD: your_postgres_password
   #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   networks:
-  #     - cathaybot-network
+  #     - cathaybot-data:/var/lib/postgresql/data:rw
   #   healthcheck:
   #     test: ["CMD-SHELL", "pg_isready -U cathaybot"]
   #     interval: 10s
@@ -81,7 +134,7 @@ services:
 networks:
   cathaybot-network:
     driver: bridge
-
-volumes:
-  redis-data:
-  # postgres-data:  # 如果使用 PostgreSQL，取消注释
+  database_interval:
+    external: true
+  nginx-proxy-network:
+    external: true
