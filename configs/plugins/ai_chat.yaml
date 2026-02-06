@@ -1,0 +1,140 @@
+# AI Chat 插件配置
+
+# AI 提供商: openai / claude
+provider: openai
+
+# API 配置
+api_key: ""  # 必填：你的 API Key
+api_base: ""  # 可选：自定义 API 地址（如使用代理或第三方服务）
+model: "gpt-4o-mini"  # 模型名称
+
+# 触发配置
+trigger_on_at: true  # @机器人时触发
+trigger_on_reply: true  # 回复机器人消息时触发
+trigger_keywords: []  # 触发关键词列表，例如: ["小助手", "AI"]
+random_reply_probability: 0.0  # 随机回复概率 (0.0-1.0)，0 表示不随机回复
+
+# 上下文配置
+max_context_messages: 20  # 最大上下文消息数
+context_expire_seconds: 3600  # 上下文过期时间（秒），1小时
+enable_context: true  # 是否启用上下文记忆
+
+# Prompt 配置
+system_prompt: |
+  你是一个友好、幽默的 AI 助手，正在群聊中与大家交流。
+  你的回复应该：
+  1. 简洁自然，符合聊天语境
+  2. 适当使用表情和网络用语
+  3. 不要过于正式或啰嗦
+  4. 可以开玩笑，但要注意分寸
+  5. 如果不确定，可以坦诚说不知道
+
+  当前群聊：{group_name}
+  当前用户：{user_name}
+
+# 分群自定义 Prompt (可选)
+# 格式: 群号: "自定义 Prompt"
+group_prompts: {}
+  # "123456789": "你是一个专业的技术助手..."
+
+# 回复配置
+max_reply_length: 500  # 最大回复长度（token）
+reply_timeout: 30  # 回复超时时间（秒）
+
+# 分段发送配置（模拟真人聊天）
+split_message: true  # 是否分段发送消息
+split_max_length: 80  # 每段消息最大长度（字符）
+split_delay_min: 0.3  # 分段发送最小间隔（秒）
+split_delay_max: 1.2  # 分段发送最大间隔（秒）
+
+# 过滤配置
+enable_content_filter: true  # 是否启用内容过滤
+blocked_words: []  # 敏感词列表
+
+# 功能开关
+enable_image_recognition: false  # 是否启用图片识别（需要支持的模型）
+enable_memory: true  # 是否启用记忆功能
+
+# 速率限制
+rate_limit_per_user: 10  # 每用户每分钟最大请求数
+rate_limit_per_group: 30  # 每群每分钟最大请求数
+
+# ========== 负载优化配置 ==========
+
+# 冷却时间（推荐开启）
+enable_cooldown: true
+cooldown_seconds: 30  # 群聊冷却时间（秒），同一个群30秒内只回复一次
+cooldown_per_user: 10  # 单用户冷却时间（秒），同一用户10秒内只回复一次
+
+# 智能跳过（推荐开启）
+enable_smart_skip: true
+min_message_length: 3  # 最小消息长度，太短的消息（如"哦"、"嗯"）会被跳过
+
+# ========== 智能回复策略 ==========
+# 策略类型：
+#   chat        - 闲聊模式（推荐）：像群友一样聊天，冷清时活跃气氛，热闹时一起嗨
+#   importance  - 重要性评分：根据消息内容计算重要性，高分才回复（适合问答型）
+#   priority    - 优先级策略：不同类型消息不同优先级，@机器人和求助必回复
+#   activity    - 活跃度自适应：群聊越活跃回复越少（适合客服型）
+#   turns       - 对话轮次限制：连续对话N轮后主动退出
+#   probability - 概率控制（不推荐）：简单的随机概率
+
+reply_strategy: chat  # 推荐使用 chat（闲聊型）或 importance（问答型）
+
+# ========== Chat 闲聊模式配置 ==========
+
+# 活跃度判断阈值（消息数/分钟）
+activity_cold_threshold: 5    # ≤5条/分钟 = 冷清
+activity_normal_threshold: 15  # ≤15条/分钟 = 正常
+activity_active_threshold: 30  # ≤30条/分钟 = 活跃，>30 = 火热
+
+# 各活跃度下的基础回复概率（0.0-1.0）
+chat_prob_cold: 0.6    # 冷清时：60% 概率，主动活跃气氛
+chat_prob_normal: 0.3  # 正常时：30% 概率，适度参与
+chat_prob_active: 0.5  # 活跃时：50% 概率，一起热闹
+chat_prob_hot: 0.6     # 火热时：60% 概率，更热闹
+
+# 有趣话题词（包含这些词的消息更容易触发回复）
+interesting_topics:
+  - "游戏"
+  - "电影"
+  - "音乐"
+  - "美食"
+  - "旅游"
+  - "八卦"
+  - "搞笑"
+  - "有意思"
+  - "好玩"
+  - "厉害"
+  - "牛"
+  - "哈哈"
+  - "笑死"
+  - "绝了"
+  - "今天"
+  - "刚才"
+  - "听说"
+  - "你们"
+  - "大家"
+
+# 冷却中的概率衰减系数（0.0-1.0）
+cooldown_decay: 0.3  # 冷却中概率降低到原来的 30%
+
+# 重要性策略配置（当 reply_strategy=importance 时生效）
+importance_threshold: 0.3  # 重要性阈值 (0.0-1.0)，越高越严格
+
+# 轮次限制配置（推荐开启，避免霸占话题）
+enable_turn_limit: true
+max_conversation_turns: 3  # 最大连续对话轮次
+turn_reset_seconds: 300    # 轮次重置时间（秒），5分钟
+
+# 活跃度自适应配置（当 reply_strategy=activity 时生效）
+enable_activity_adaptive: false
+activity_window: 60  # 活跃度统计窗口（秒）
+
+# 概率控制配置（当 reply_strategy=probability 时生效，不推荐）
+enable_probability_control: false
+base_reply_probability: 0.7  # 基础回复概率 (0.0-1.0)
+
+# 上下文压缩（推荐开启，减少 token 消耗）
+enable_context_compression: true
+keep_recent_messages: 5  # 保留最近5条完整消息，更早的消息会被压缩成摘要
