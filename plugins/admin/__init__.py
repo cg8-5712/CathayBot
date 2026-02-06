@@ -21,6 +21,7 @@ from nonebot.adapters.onebot.v11 import (
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
+from nonebot.adapters.onebot.v11.permission import GROUP_OWNER, GROUP_ADMIN
 from nonebot.plugin import PluginMetadata
 
 from .config import Config
@@ -35,6 +36,9 @@ __plugin_meta__ = PluginMetadata(
 /admin reload <插件名> - 重载插件
 /admin broadcast <消息> - 群发消息
 /admin echo <消息> - 回显消息 (测试用)
+/admin mute @用户 [时长] - 禁言用户 (默认10分钟，支持: 30s/10m/1h/1d)
+/admin unmute @用户 - 解除禁言
+/admin kick @用户 [拒绝再次申请] - 踢出群成员
 
 --raw 参数输出纯文字，否则输出图片
     """.strip(),
@@ -53,8 +57,8 @@ plugin_config = Config.load("admin")
 # 启动时间
 START_TIME = datetime.now()
 
-# 注册命令 (仅超级管理员可用)
-admin_cmd = on_command("admin", permission=SUPERUSER, priority=1, block=True)
+# 注册命令 (超级管理员或群主可用)
+admin_cmd = on_command("admin", permission=SUPERUSER | GROUP_OWNER, priority=1, block=True)
 
 
 def parse_raw_flag(args: str) -> tuple[str, bool]:
@@ -112,6 +116,16 @@ async def handle_admin(
     sub_cmd = parts[0].lower()
     sub_args = parts[1] if len(parts) > 1 else ""
 
+    # 检查是否为超级管理员
+    driver = get_driver()
+    superusers = driver.config.superusers
+    is_superuser = str(event.user_id) in superusers
+
+    # 某些命令仅超级管理员可用
+    superuser_only_cmds = ["reload", "broadcast"]
+    if sub_cmd in superuser_only_cmds and not is_superuser:
+        await matcher.finish(f"❌ 命令 {sub_cmd} 仅超级管理员可用")
+
     if sub_cmd == "status":
         await handle_status(bot, matcher, raw_mode)
 
@@ -126,6 +140,15 @@ async def handle_admin(
 
     elif sub_cmd == "echo":
         await matcher.finish(sub_args or "请输入要回显的内容")
+
+    elif sub_cmd == "mute":
+        await handle_mute(bot, event, matcher, sub_args)
+
+    elif sub_cmd == "unmute":
+        await handle_unmute(bot, event, matcher, sub_args)
+
+    elif sub_cmd == "kick":
+        await handle_kick(bot, event, matcher, sub_args)
 
     else:
         await matcher.finish(f"未知的子命令: {sub_cmd}")
@@ -314,3 +337,208 @@ async def handle_broadcast(bot: Bot, matcher: Matcher, message: str):
         await asyncio.sleep(plugin_config.broadcast_interval)
 
     await matcher.finish(f"📢 广播完成\n✅ 成功: {success}\n❌ 失败: {failed}")
+
+
+def parse_duration(duration_str: str) -> int:
+    """解析时长字符串，返回秒数
+
+    支持格式:
+    - 纯数字: 默认为分钟
+    - 30s: 30秒
+    - 10m: 10分钟
+    - 1h: 1小时
+    - 1d: 1天
+    """
+    duration_str = duration_str.strip().lower()
+
+    if not duration_str:
+        return 600  # 默认10分钟
+
+    # 纯数字，默认为分钟
+    if duration_str.isdigit():
+        return int(duration_str) * 60
+
+    # 带单位
+    if duration_str[-1] in ['s', 'm', 'h', 'd']:
+        try:
+            value = int(duration_str[:-1])
+            unit = duration_str[-1]
+
+            if unit == 's':
+                return value
+            elif unit == 'm':
+                return value * 60
+            elif unit == 'h':
+                return value * 3600
+            elif unit == 'd':
+                return value * 86400
+        except ValueError:
+            return 600  # 解析失败，返回默认值
+
+    return 600  # 默认10分钟
+
+
+def format_duration(seconds: int) -> str:
+    """格式化时长显示"""
+    if seconds < 60:
+        return f"{seconds}秒"
+    elif seconds < 3600:
+        return f"{seconds // 60}分钟"
+    elif seconds < 86400:
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        return f"{hours}小时{minutes}分钟" if minutes > 0 else f"{hours}小时"
+    else:
+        days = seconds // 86400
+        hours = (seconds % 86400) // 3600
+        return f"{days}天{hours}小时" if hours > 0 else f"{days}天"
+
+
+async def handle_mute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str):
+    """处理禁言命令"""
+    # 检查是否为群聊
+    if not isinstance(event, GroupMessageEvent):
+        await matcher.finish("❌ 禁言命令只能在群聊中使用")
+
+    # 解析参数
+    parts = args.split()
+    if not parts:
+        await matcher.finish("❌ 请指定要禁言的用户 (使用 @用户 或 QQ号)")
+
+    # 获取目标用户ID
+    target_id = None
+    duration_str = ""
+
+    # 检查是否有 at 消息段
+    for seg in event.message:
+        if seg.type == "at":
+            target_id = seg.data.get("qq")
+            break
+
+    # 如果没有 at，尝试从参数中解析 QQ 号
+    if not target_id:
+        if parts[0].isdigit():
+            target_id = parts[0]
+            duration_str = parts[1] if len(parts) > 1 else ""
+        else:
+            await matcher.finish("❌ 请使用 @用户 或输入 QQ号")
+    else:
+        duration_str = parts[0] if parts else ""
+
+    # 解析时长
+    duration = parse_duration(duration_str)
+
+    # 检查是否禁言自己或机器人
+    bot_info = await bot.get_login_info()
+    bot_id = str(bot_info.get("user_id"))
+
+    if str(target_id) == bot_id:
+        await matcher.finish("❌ 不能禁言机器人自己")
+
+    if str(target_id) == str(event.user_id):
+        await matcher.finish("❌ 不能禁言自己")
+
+    # 执行禁言
+    try:
+        await bot.set_group_ban(
+            group_id=event.group_id,
+            user_id=int(target_id),
+            duration=duration
+        )
+
+        duration_text = format_duration(duration)
+        await matcher.finish(f"✅ 已禁言用户 {target_id} {duration_text}")
+    except Exception as e:
+        await matcher.finish(f"❌ 禁言失败: {e}")
+
+
+async def handle_unmute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str):
+    """处理解除禁言命令"""
+    # 检查是否为群聊
+    if not isinstance(event, GroupMessageEvent):
+        await matcher.finish("❌ 解除禁言命令只能在群聊中使用")
+
+    # 获取目标用户ID
+    target_id = None
+
+    # 检查是否有 at 消息段
+    for seg in event.message:
+        if seg.type == "at":
+            target_id = seg.data.get("qq")
+            break
+
+    # 如果没有 at，尝试从参数中解析 QQ 号
+    if not target_id:
+        parts = args.split()
+        if parts and parts[0].isdigit():
+            target_id = parts[0]
+        else:
+            await matcher.finish("❌ 请使用 @用户 或输入 QQ号")
+
+    # 执行解除禁言 (duration=0)
+    try:
+        await bot.set_group_ban(
+            group_id=event.group_id,
+            user_id=int(target_id),
+            duration=0
+        )
+        await matcher.finish(f"✅ 已解除用户 {target_id} 的禁言")
+    except Exception as e:
+        await matcher.finish(f"❌ 解除禁言失败: {e}")
+
+
+async def handle_kick(bot: Bot, event: MessageEvent, matcher: Matcher, args: str):
+    """处理踢人命令"""
+    # 检查是否为群聊
+    if not isinstance(event, GroupMessageEvent):
+        await matcher.finish("❌ 踢人命令只能在群聊中使用")
+
+    # 解析参数
+    parts = args.split()
+
+    # 获取目标用户ID
+    target_id = None
+    reject_add_request = False
+
+    # 检查是否有 at 消息段
+    for seg in event.message:
+        if seg.type == "at":
+            target_id = seg.data.get("qq")
+            break
+
+    # 如果没有 at，尝试从参数中解析 QQ 号
+    if not target_id:
+        if parts and parts[0].isdigit():
+            target_id = parts[0]
+            # 检查是否有拒绝再次申请参数
+            if len(parts) > 1 and parts[1].lower() in ['true', '1', 'yes', '拒绝']:
+                reject_add_request = True
+        else:
+            await matcher.finish("❌ 请使用 @用户 或输入 QQ号")
+    else:
+        # 检查是否有拒绝再次申请参数
+        if parts and parts[0].lower() in ['true', '1', 'yes', '拒绝']:
+            reject_add_request = True
+
+    # 检查是否踢自己或机器人
+    bot_info = await bot.get_login_info()
+    bot_id = str(bot_info.get("user_id"))
+
+    if str(target_id) == bot_id:
+        await matcher.finish("❌ 不能踢出机器人自己")
+
+    if str(target_id) == str(event.user_id):
+        await matcher.finish("❌ 不能踢出自己")
+
+    # 执行踢人
+    try:
+        await bot.set_group_kick(
+            group_id=event.group_id,
+            user_id=int(target_id),
+            reject_add_request=reject_add_request
+        )
+
+        reject_text = " (已拒绝再次申请)" if reject_add_request else ""
+        await matcher.finish(f"✅ 已踢出用户 {target_id}{reject_text}")
+    except Exception as e:
+        await matcher.finish(f"❌ 踢人失败: {e}")

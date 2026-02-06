@@ -9,8 +9,8 @@
 - **框架**: NoneBot2 + OneBot V11
 - **驱动**: FastAPI
 - **配置**: YAML + Pydantic2
-- **数据库**: SQLite/PostgreSQL (待定)
-- **前端**: Vue3 (WebUI)
+- **数据库**: SQLite/PostgreSQL 使用 sea-orm
+- **前端**: React (TypeScript)
 
 ---
 
@@ -178,7 +178,7 @@ plugins/webui/
 │   ├── plugins.py        # 插件管理
 │   └── logs.py           # 日志接口
 ├── static/               # 前端静态文件
-│   └── dist/             # Vue 打包产物
+│   └── dist/             # React 打包产物
 └── frontend/             # 前端源码 (开发用)
     ├── package.json
     └── src/
