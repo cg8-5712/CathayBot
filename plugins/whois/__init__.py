@@ -151,7 +151,13 @@ async def query_whois(domain: str, timeout: int = 10) -> Optional[dict]:
             if isinstance(expiration, datetime):
                 data["expiration_date"] = expiration.strftime('%Y-%m-%d %H:%M:%S')
                 # 计算剩余天数
-                days_left = (expiration - datetime.now()).days
+                # 处理时区问题：如果 expiration 有时区信息，使用 utcnow()；否则使用 now()
+                if expiration.tzinfo is not None:
+                    from datetime import timezone
+                    now = datetime.now(timezone.utc)
+                else:
+                    now = datetime.now()
+                days_left = (expiration - now).days
                 data["days_left"] = days_left
             else:
                 data["expiration_date"] = str(expiration)
@@ -291,7 +297,7 @@ async def handle_whois(
         await matcher.finish(f"❌ 无效的域名格式: {domain}")
 
     # 发送查询提示
-    await matcher.send(f"🔍 正在查询域名: {domain}")
+    # await matcher.send(f"🔍 正在查询域名: {domain}")
 
     # 并行执行查询
     whois_task = query_whois(domain, timeout=plugin_config.timeout)
