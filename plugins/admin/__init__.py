@@ -142,13 +142,13 @@ async def handle_admin(
         await matcher.finish(sub_args or "请输入要回显的内容")
 
     elif sub_cmd == "mute":
-        await handle_mute(bot, event, matcher, sub_args)
+        await handle_mute(bot, event, matcher, sub_args, args)
 
     elif sub_cmd == "unmute":
-        await handle_unmute(bot, event, matcher, sub_args)
+        await handle_unmute(bot, event, matcher, sub_args, args)
 
     elif sub_cmd == "kick":
-        await handle_kick(bot, event, matcher, sub_args)
+        await handle_kick(bot, event, matcher, sub_args, args)
 
     else:
         await matcher.finish(f"未知的子命令: {sub_cmd}")
@@ -394,35 +394,36 @@ def format_duration(seconds: int) -> str:
         return f"{days}天{hours}小时" if hours > 0 else f"{days}天"
 
 
-async def handle_mute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str):
+async def handle_mute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str, cmd_args: Message):
     """处理禁言命令"""
+    from nonebot.exception import FinishedException
+
     # 检查是否为群聊
     if not isinstance(event, GroupMessageEvent):
         await matcher.finish("❌ 禁言命令只能在群聊中使用")
 
     # 解析参数
     parts = args.split()
-    if not parts:
-        await matcher.finish("❌ 请指定要禁言的用户 (使用 @用户 或 QQ号)")
 
     # 获取目标用户ID
     target_id = None
     duration_str = ""
 
-    # 检查是否有 at 消息段
-    for seg in event.message:
+    # 检查命令参数中是否有 at 消息段
+    for seg in cmd_args:
         if seg.type == "at":
             target_id = seg.data.get("qq")
             break
 
     # 如果没有 at，尝试从参数中解析 QQ 号
     if not target_id:
-        if parts[0].isdigit():
+        if parts and parts[0].isdigit():
             target_id = parts[0]
             duration_str = parts[1] if len(parts) > 1 else ""
         else:
             await matcher.finish("❌ 请使用 @用户 或输入 QQ号")
     else:
+        # 有 at 的情况，时长参数在纯文本部分
         duration_str = parts[0] if parts else ""
 
     # 解析时长
@@ -445,15 +446,16 @@ async def handle_mute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str
             user_id=int(target_id),
             duration=duration
         )
-
-        duration_text = format_duration(duration)
-        await matcher.finish(f"✅ 已禁言用户 {target_id} {duration_text}")
+    except FinishedException:
+        raise
     except Exception as e:
         await matcher.finish(f"❌ 禁言失败: {e}")
 
 
-async def handle_unmute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str):
+async def handle_unmute(bot: Bot, event: MessageEvent, matcher: Matcher, args: str, cmd_args: Message):
     """处理解除禁言命令"""
+    from nonebot.exception import FinishedException
+
     # 检查是否为群聊
     if not isinstance(event, GroupMessageEvent):
         await matcher.finish("❌ 解除禁言命令只能在群聊中使用")
@@ -461,8 +463,8 @@ async def handle_unmute(bot: Bot, event: MessageEvent, matcher: Matcher, args: s
     # 获取目标用户ID
     target_id = None
 
-    # 检查是否有 at 消息段
-    for seg in event.message:
+    # 检查命令参数中是否有 at 消息段
+    for seg in cmd_args:
         if seg.type == "at":
             target_id = seg.data.get("qq")
             break
@@ -482,13 +484,16 @@ async def handle_unmute(bot: Bot, event: MessageEvent, matcher: Matcher, args: s
             user_id=int(target_id),
             duration=0
         )
-        await matcher.finish(f"✅ 已解除用户 {target_id} 的禁言")
+    except FinishedException:
+        raise
     except Exception as e:
         await matcher.finish(f"❌ 解除禁言失败: {e}")
 
 
-async def handle_kick(bot: Bot, event: MessageEvent, matcher: Matcher, args: str):
+async def handle_kick(bot: Bot, event: MessageEvent, matcher: Matcher, args: str, cmd_args: Message):
     """处理踢人命令"""
+    from nonebot.exception import FinishedException
+
     # 检查是否为群聊
     if not isinstance(event, GroupMessageEvent):
         await matcher.finish("❌ 踢人命令只能在群聊中使用")
@@ -500,8 +505,8 @@ async def handle_kick(bot: Bot, event: MessageEvent, matcher: Matcher, args: str
     target_id = None
     reject_add_request = False
 
-    # 检查是否有 at 消息段
-    for seg in event.message:
+    # 检查命令参数中是否有 at 消息段
+    for seg in cmd_args:
         if seg.type == "at":
             target_id = seg.data.get("qq")
             break
@@ -537,8 +542,7 @@ async def handle_kick(bot: Bot, event: MessageEvent, matcher: Matcher, args: str
             user_id=int(target_id),
             reject_add_request=reject_add_request
         )
-
-        reject_text = " (已拒绝再次申请)" if reject_add_request else ""
-        await matcher.finish(f"✅ 已踢出用户 {target_id}{reject_text}")
+    except FinishedException:
+        raise
     except Exception as e:
         await matcher.finish(f"❌ 踢人失败: {e}")
