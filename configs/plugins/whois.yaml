@@ -1,0 +1,6 @@
+# Whois 插件配置
+
+enabled: true          # 是否启用插件
+timeout: 10            # 查询超时时间（秒）
+max_length: 2000       # 最大返回字符数
+default_output: image  # 默认输出模式: image / text
