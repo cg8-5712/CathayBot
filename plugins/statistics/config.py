@@ -30,5 +30,8 @@ class Config(PluginConfig):
     # 是否保存聊天记录到 Redis
     save_chat_history: bool = Field(default=True, description="是否保存聊天记录")
 
-    # 每个会话保存的最大消息数
-    max_messages_per_chat: int = Field(default=1000, description="每个会话保存的最大消息数")
+    # 每个会话保存的最大消息数 (0=不限制)
+    max_messages_per_chat: int = Field(default=1000, description="每个会话保存的最大消息数 (0=不限制)")
+
+    # 聊天记录同步间隔（秒）
+    chat_sync_interval: int = Field(default=3600, description="聊天记录同步间隔（秒），默认1小时")
