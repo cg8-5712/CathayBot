@@ -39,7 +39,7 @@ async def shutdown():
 nonebot.load_plugins("plugins")
 
 # 获取 ASGI 应用 (用于 WebUI 等)
-app = nonebot.get_asgi()
+# app = nonebot.get_asgi()
 
 if __name__ == "__main__":
     nonebot.run()

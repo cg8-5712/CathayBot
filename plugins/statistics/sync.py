@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from cathaybot.cache import redis_client
-from cathaybot.config import global_config
+from cathaybot.config import GlobalConfig
 from cathaybot.database import get_session
 
 from .config import Config
@@ -31,7 +31,7 @@ plugin_config = Config.load("statistics")
 
 async def sync_stats_to_db():
     """将 Redis 统计数据同步到数据库"""
-    if not global_config.redis.enabled:
+    if not GlobalConfig.redis.enabled:
         return
 
     yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -69,7 +69,7 @@ async def sync_stats_to_db():
 
 async def sync_chat_history_to_db():
     """将 Redis 聊天记录同步到数据库，并更新聚合统计表"""
-    if not global_config.redis.enabled:
+    if not GlobalConfig.redis.enabled:
         return
 
     if not plugin_config.save_chat_history:
