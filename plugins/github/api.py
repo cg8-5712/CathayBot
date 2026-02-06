@@ -164,6 +164,37 @@ class GitHubAPI:
                 top_repos.sort(key=lambda x: x["stars"], reverse=True)
                 user.top_repos = top_repos[:3]
 
+            # 获取用户的 commits 数量（通过搜索 API）
+            try:
+                commits_resp = await client.get(
+                    "/search/commits",
+                    params={
+                        "q": f"author:{user.login}",
+                        "per_page": 1
+                    },
+                    headers={"Accept": "application/vnd.github.cloak-preview+json"}
+                )
+                if commits_resp.status_code == 200:
+                    commits_data = commits_resp.json()
+                    user.total_commits = commits_data.get("total_count", 0)
+            except Exception as e:
+                logger.debug(f"获取 commits 数量失败: {e}")
+
+            # 获取用户的 PR 数量（通过搜索 API）
+            try:
+                prs_resp = await client.get(
+                    "/search/issues",
+                    params={
+                        "q": f"author:{user.login} type:pr",
+                        "per_page": 1
+                    }
+                )
+                if prs_resp.status_code == 200:
+                    prs_data = prs_resp.json()
+                    user.total_prs = prs_data.get("total_count", 0)
+            except Exception as e:
+                logger.debug(f"获取 PR 数量失败: {e}")
+
         except Exception as e:
             logger.warning(f"获取用户统计信息失败: {e}")
 

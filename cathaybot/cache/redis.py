@@ -80,6 +80,10 @@ class RedisClient:
         await self._client.set(self._key(key), value, ex=expire)
         return True
 
+    async def setex(self, key: str, seconds: int, value: str) -> bool:
+        """设置值并指定过期时间（兼容方法）"""
+        return await self.set(key, value, expire=seconds)
+
     async def delete(self, key: str) -> bool:
         """删除键"""
         if not self._client:

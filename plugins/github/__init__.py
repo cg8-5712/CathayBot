@@ -50,9 +50,9 @@ if plugin_config.token:
 driver = get_driver()
 
 # GitHub 链接正则
-# 匹配: https://github.com/user 或 https://github.com/owner/repo
+# 简单匹配 github.com 后的路径，然后用 / 切分
 GITHUB_URL_PATTERN = re.compile(
-    r"https?://github\.com/([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})(?:/([a-zA-Z0-9._-]+))?(?:\s|$|[^\w/])"
+    r"https?://github\.com/([a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)?)"
 )
 
 
@@ -85,11 +85,11 @@ def format_user_text(user: GitHubUser) -> str:
 
     lines.extend([
         f"⭐ Stars: {user.total_stars}  |  🍴 Forks: {user.total_forks}  |  👥 Followers: {user.followers}",
-        f"📦 Repos: {user.public_repos}",
+        f"📦 Repos: {user.public_repos}  |  💻 Commits: {user.total_commits}  |  🔀 PRs: {user.total_prs}",
     ])
 
     if user.top_languages:
-        lines.append(f"💻 Languages: {', '.join(user.top_languages)}")
+        lines.append(f"🔤 Languages: {', '.join(user.top_languages)}")
 
     if user.top_repos:
         lines.append("")
@@ -148,7 +148,12 @@ async def handle_github_link(bot: Bot, event: MessageEvent):
         return
 
     # 只处理第一个匹配的链接
-    username, repo_name = matches[0]
+    path = matches[0]
+
+    # 用 / 切分路径
+    parts = path.split('/')
+    username = parts[0]
+    repo_name = parts[1] if len(parts) > 1 else None
 
     # 过滤掉一些特殊路径
     if username.lower() in ("settings", "notifications", "explore", "topics", "trending", "collections", "events", "sponsors", "login", "join", "pricing", "features", "security", "enterprise", "team", "customer-stories", "readme", "about", "orgs", "marketplace"):

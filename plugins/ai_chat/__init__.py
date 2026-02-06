@@ -32,15 +32,11 @@ __plugin_meta__ = PluginMetadata(
     name="AI 对话",
     description="智能 AI 对话，支持上下文、自定义 Prompt、多提供商",
     usage="""
-/chat <消息> - 与 AI 对话
+机器人会自动读取并回复所有消息
+
+管理命令：
 /chat clear - 清空当前会话上下文
 /chat prompt <内容> - 设置当前群的自定义 Prompt (仅管理员)
-
-触发方式：
-- @机器人 + 消息
-- 回复机器人的消息
-- 包含触发关键词
-- 随机回复（可配置概率）
     """.strip(),
     type="application",
     config=Config,
@@ -327,32 +323,8 @@ def should_trigger(event: MessageEvent, bot: Bot) -> bool:
     Returns:
         是否触发
     """
-    message = event.get_message()
-    plain_text = message.extract_plain_text().strip()
-
-    # 1. @机器人触发
-    if plugin_config.trigger_on_at:
-        for seg in message:
-            if seg.type == "at" and seg.data.get("qq") == str(bot.self_id):
-                return True
-
-    # 2. 回复机器人消息触发
-    if plugin_config.trigger_on_reply and event.reply:
-        if str(event.reply.sender.user_id) == str(bot.self_id):
-            return True
-
-    # 3. 关键词触发
-    if plugin_config.trigger_keywords:
-        for keyword in plugin_config.trigger_keywords:
-            if keyword in plain_text:
-                return True
-
-    # 4. 随机回复
-    if plugin_config.random_reply_probability > 0:
-        if random.random() < plugin_config.random_reply_probability:
-            return True
-
-    return False
+    # 监听所有消息
+    return True
 
 
 # ==================== AI 对话处理 ====================
@@ -550,12 +522,8 @@ async def handle_chat_command(bot: Bot, event: MessageEvent, matcher: Matcher, a
 
         await matcher.finish(f"已设置当前群的自定义 Prompt:\n{prompt_content}")
 
-    # 普通对话
-    if arg_text:
-        # 构造一个假的消息事件来触发对话
-        await handle_ai_chat(bot, event, matcher)
-    else:
-        await matcher.finish("请输入要对话的内容，或使用 /chat clear 清空上下文")
+    # 未知命令提示
+    await matcher.finish("未知命令。可用命令：\n- /chat clear - 清空上下文\n- /chat prompt <内容> - 设置自定义 Prompt")
 
 
 # ==================== 启动初始化 ====================
