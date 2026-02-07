@@ -70,6 +70,14 @@ async def render_video_card(data: dict) -> bytes | None:
         cover_url = data.get("pic", "")
         owner_face = data.get("owner", {}).get("face", "")
 
+        # 强制使用 HTTPS（避免 Chromium 阻止 HTTP 请求）
+        if cover_url.startswith("http://"):
+            cover_url = cover_url.replace("http://", "https://", 1)
+            logger.debug(f"[DEBUG] 封面URL转换为HTTPS: {cover_url}")
+        if owner_face.startswith("http://"):
+            owner_face = owner_face.replace("http://", "https://", 1)
+            logger.debug(f"[DEBUG] 头像URL转换为HTTPS: {owner_face}")
+
         logger.debug(f"[DEBUG] 开始渲染视频卡片:")
         logger.debug(f"  - 封面URL: {cover_url}")
         logger.debug(f"  - UP主头像URL: {owner_face}")
