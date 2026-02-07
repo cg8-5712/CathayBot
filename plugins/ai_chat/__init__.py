@@ -460,7 +460,20 @@ async def handle_ai_chat(bot: Bot, event: MessageEvent, matcher: Matcher):
 
     except Exception as e:
         logger.error(f"AI 对话处理失败: {e}")
-        await matcher.finish("抱歉，我遇到了一些问题，请稍后再试")
+        logger.debug(f"[DEBUG] 错误详情:")
+        logger.debug(f"  - 会话ID: {conv_id}")
+        logger.debug(f"  - 用户ID: {user_id}")
+        logger.debug(f"  - 消息内容: {plain_text}")
+        logger.debug(f"  - 上下文消息数: {len(context_messages) if 'context_messages' in locals() else 0}")
+        if 'context_messages' in locals():
+            logger.debug(f"  - 上下文内容: {context_messages}")
+        if 'system_prompt' in locals():
+            logger.debug(f"  - 系统提示词: {system_prompt[:200]}...")
+        logger.debug(f"  - 异常类型: {type(e).__name__}")
+        logger.debug(f"  - 异常详情: {str(e)}")
+        import traceback
+        logger.debug(f"  - 堆栈跟踪:\n{traceback.format_exc()}")
+        await matcher.finish("抱歉，我遇到了一些问题，请稍后再试喵~")
 
 
 # ==================== 消息监听 ====================

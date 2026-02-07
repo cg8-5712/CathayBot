@@ -47,19 +47,68 @@ class OpenAIProvider(AIProvider):
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
+                # 记录请求信息（调试模式）
+                logger.debug(f"[DEBUG] OpenAI API 请求:")
+                logger.debug(f"  - URL: {self.base_url}/chat/completions")
+                logger.debug(f"  - Model: {self.model}")
+                logger.debug(f"  - Temperature: {payload.get('temperature')}")
+                logger.debug(f"  - Max Tokens: {payload.get('max_tokens')}")
+                logger.debug(f"  - 完整请求体 (payload):")
+                import json
+                logger.debug(json.dumps(payload, ensure_ascii=False, indent=2))
+                logger.debug(f"  - Messages 详情:")
+                for i, msg in enumerate(payload['messages']):
+                    logger.debug(f"    [{i}] {msg['role']}: {msg['content'][:200]}{'...' if len(msg['content']) > 200 else ''}")
+
                 response = await client.post(
                     f"{self.base_url}/chat/completions",
                     json=payload,
                     headers=headers,
                 )
+
+                # 记录响应状态
+                logger.debug(f"[DEBUG] OpenAI API 响应状态: {response.status_code}")
+                logger.debug(f"[DEBUG] 响应头: {dict(response.headers)}")
+
                 response.raise_for_status()
-                data = response.json()
+
+                # 检查响应内容
+                response_text = response.text
+                logger.debug(f"[DEBUG] 原始响应内容: {response_text[:1000]}")
+
+                if not response_text:
+                    logger.error(f"OpenAI API 返回空响应")
+                    logger.error(f"[DEBUG] 请求 payload: {payload}")
+                    raise Exception("API 返回空响应")
+
+                # 尝试解析 JSON
+                try:
+                    data = response.json()
+                    logger.debug(f"[DEBUG] 解析后的 JSON: {data}")
+                except Exception as json_error:
+                    logger.error(f"JSON 解析失败，响应内容: {response_text[:500]}")
+                    logger.error(f"[DEBUG] 完整响应: {response_text}")
+                    logger.error(f"[DEBUG] 请求 payload: {payload}")
+                    raise Exception(f"API 返回非 JSON 格式: {json_error}")
+
+                # 检查响应结构
+                if "choices" not in data or not data["choices"]:
+                    logger.error(f"API 响应格式异常: {data}")
+                    logger.error(f"[DEBUG] 请求 payload: {payload}")
+                    raise Exception("API 响应缺少 choices 字段")
+
                 return data["choices"][0]["message"]["content"]
         except httpx.HTTPStatusError as e:
             logger.error(f"OpenAI API 请求失败: {e.response.status_code} - {e.response.text}")
+            logger.error(f"[DEBUG] 请求 URL: {self.base_url}/chat/completions")
+            logger.error(f"[DEBUG] 请求 payload: {payload}")
+            logger.error(f"[DEBUG] 响应头: {dict(e.response.headers)}")
             raise Exception(f"API 请求失败: {e.response.status_code}")
         except Exception as e:
             logger.error(f"OpenAI API 调用异常: {e}")
+            logger.error(f"[DEBUG] 请求 payload: {payload}")
+            import traceback
+            logger.error(f"[DEBUG] 堆栈跟踪:\n{traceback.format_exc()}")
             raise
 
     async def chat_stream(
